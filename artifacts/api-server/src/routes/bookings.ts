@@ -70,6 +70,14 @@ router.post("/book", async (req, res) => {
 
 router.delete("/book/:id", async (req, res) => {
   try {
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    const providedPassword = req.headers["x-admin-password"];
+
+    if (!adminPassword || providedPassword !== adminPassword) {
+      res.status(401).json({ error: "Incorrect admin password." });
+      return;
+    }
+
     const id = parseInt(req.params.id, 10);
 
     if (isNaN(id)) {
