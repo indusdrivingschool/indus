@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Indus Driving School API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: bookings
+    description: Booking operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,77 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /bookings:
+    get:
+      operationId: getBookings
+      tags: [bookings]
+      summary: Get all bookings
+      description: Returns all bookings
+      responses:
+        "200":
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Booking"
+  /book:
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Create a booking
+      description: Creates a new booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingRequest"
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "409":
+          description: Time slot already booked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /book/{id}:
+    delete:
+      operationId: cancelBooking
+      tags: [bookings]
+      summary: Cancel a booking
+      description: Cancels an existing booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +105,60 @@ components:
           type: string
       required:
         - status
-
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          description: Date in YYYY-MM-DD format
+        time:
+          type: string
+          description: Time slot (e.g. "7:00 AM")
+        package:
+          type: string
+          enum: [Morning, Evening]
+        name:
+          type: string
+        phone:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - date
+        - time
+        - package
+        - name
+        - phone
+        - createdAt
+    CreateBookingRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          description: Date in YYYY-MM-DD format
+        time:
+          type: string
+          description: Time slot (e.g. "7:00 AM")
+        package:
+          type: string
+          enum: [Morning, Evening]
+        name:
+          type: string
+        phone:
+          type: string
+      required:
+        - date
+        - time
+        - package
+        - name
+        - phone
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

@@ -1,0 +1,18 @@
+packages:
+  "framer-motion": "For smooth scroll animations and page transitions"
+  "date-fns": "For calendar logic, date manipulation, and formatting"
+  "react-hook-form": "For robust booking form state and validation"
+  "@hookform/resolvers": "For Zod schema validation with react-hook-form"
+  "zod": "For form schema validation"
+  "lucide-react": "For beautiful UI icons"
+  "clsx": "For conditional class name joining"
+  "tailwind-merge": "For merging Tailwind classes without conflicts"
+
+images:
+  - path: "artifacts/indus-driving-school/public/images/logo.png"
+    description: "Minimal modern geometric logo for a driving school featuring an abstract steering wheel shape in deep red and dark slate. Transparent background."
+    aspect_ratio: "1:1"
+
+notes:
+  - Expects @workspace/api-client-react hooks to be available
+  - React Query and standard UI components are expected to be available
