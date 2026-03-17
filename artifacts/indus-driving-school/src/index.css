@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Outfit:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: 'DM Sans', sans-serif;
-  --font-display: 'Outfit', sans-serif;
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Playfair Display', serif;
 
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -33,35 +33,50 @@
 
 :root {
   --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
+  --foreground: 220 15% 10%;
   
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
+  --card-foreground: 220 15% 10%;
   
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
+  --popover-foreground: 220 15% 10%;
   
-  /* Primary Red Theme */
-  --primary: 348 83% 47%;
-  --primary-foreground: 210 40% 98%;
+  /* Deep crimson red */
+  --primary: 0 72% 45%;
+  --primary-foreground: 0 0% 100%;
   
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 15% 10%;
   
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
   
-  --accent: 210 40% 96%;
-  --accent-foreground: 222 47% 11%;
+  --accent: 0 72% 97%;
+  --accent-foreground: 0 72% 30%;
   
   --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
+  --destructive-foreground: 0 0% 100%;
 
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 348 83% 47%;
+  --border: 220 13% 91%;
+  --input: 220 13% 85%;
+  --ring: 0 72% 45%;
   
   --radius: 0.75rem;
+
+  --chart-1: 0 72% 45%;
+  --chart-2: 350 80% 55%;
+  --chart-3: 340 70% 65%;
+  --chart-4: 330 60% 75%;
+  --chart-5: 320 50% 85%;
+  
+  --sidebar-background: 220 14% 96%;
+  --sidebar-foreground: 220 15% 10%;
+  --sidebar-primary: 0 72% 45%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 72% 97%;
+  --sidebar-accent-foreground: 0 72% 30%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 0 72% 45%;
 }
 
 @layer base {
@@ -80,5 +95,23 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     @apply font-bold tracking-tight;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--secondary));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.5);
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.8);
   }
 }

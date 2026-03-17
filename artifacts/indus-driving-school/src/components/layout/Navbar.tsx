@@ -23,10 +23,10 @@ export function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b ${
         isScrolled
-          ? "bg-white/90 backdrop-blur-md shadow-sm py-3"
-          : "bg-transparent py-5"
+          ? "bg-white/80 backdrop-blur-xl border-border/50 shadow-sm py-3"
+          : "bg-white/10 backdrop-blur-md border-white/20 py-5"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,11 +40,11 @@ export function Navbar() {
               <CarFront size={24} />
             </div>
             <span
-              className={`font-display font-bold text-xl tracking-tight transition-colors ${
-                isScrolled ? "text-foreground" : "text-white drop-shadow-md"
+              className={`font-display font-bold text-2xl tracking-tight transition-colors ${
+                isScrolled ? "text-foreground" : "text-white drop-shadow-sm"
               }`}
             >
-              Indus <span className="text-primary">Driving School</span>
+              Indus <span className="text-primary drop-shadow-none">Driving School</span>
             </span>
           </a>
 
@@ -54,16 +54,17 @@ export function Navbar() {
               <a
                 key={link.name}
                 href={link.href}
-                className={`font-medium text-sm transition-colors hover:text-primary ${
+                className={`relative font-medium text-sm transition-colors hover:text-primary group ${
                   isScrolled ? "text-foreground/80" : "text-white/90 drop-shadow-sm"
                 }`}
               >
                 {link.name}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
               </a>
             ))}
             <a
               href="#booking"
-              className="px-5 py-2.5 bg-primary text-white font-semibold rounded-lg shadow-lg shadow-primary/30 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 transition-all focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              className="px-6 py-2.5 bg-primary text-white font-medium rounded-full shadow-[0_4px_14px_0_rgba(185,28,28,0.39)] hover:bg-primary/90 hover:shadow-[0_6px_20px_rgba(185,28,28,0.23)] hover:-translate-y-0.5 transition-all focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
               Book Now
             </a>
@@ -88,7 +89,7 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-t border-border overflow-hidden"
+            className="md:hidden bg-white/95 backdrop-blur-xl border-t border-border overflow-hidden"
           >
             <div className="px-4 py-6 flex flex-col gap-4">
               {navLinks.map((link) => (
@@ -104,7 +105,7 @@ export function Navbar() {
               <a
                 href="#booking"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="mt-4 text-center px-5 py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:bg-primary/90 transition-colors"
+                className="mt-4 text-center px-6 py-3 bg-primary text-white font-semibold rounded-full shadow-md hover:bg-primary/90 transition-colors"
               >
                 Book Now
               </a>
