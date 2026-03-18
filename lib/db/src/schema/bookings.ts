@@ -9,6 +9,8 @@ export const bookingsTable = pgTable("bookings", {
   package: text("package").notNull(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
+  email: text("email").notNull().default(""),
+  price: text("price").notNull().default(""),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

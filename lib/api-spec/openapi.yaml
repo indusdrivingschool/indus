@@ -17,7 +17,6 @@ paths:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -30,7 +29,6 @@ paths:
       operationId: getBookings
       tags: [bookings]
       summary: Get all bookings
-      description: Returns all bookings
       responses:
         "200":
           description: List of bookings
@@ -45,7 +43,6 @@ paths:
       operationId: createBooking
       tags: [bookings]
       summary: Create a booking
-      description: Creates a new booking
       requestBody:
         required: true
         content:
@@ -76,7 +73,6 @@ paths:
       operationId: cancelBooking
       tags: [bookings]
       summary: Cancel a booking
-      description: Cancels an existing booking
       parameters:
         - name: id
           in: path
@@ -90,6 +86,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Booking"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Booking not found
           content:
@@ -112,16 +114,18 @@ components:
           type: integer
         date:
           type: string
-          description: Date in YYYY-MM-DD format
         time:
           type: string
-          description: Time slot (e.g. "7:00 AM")
         package:
           type: string
           enum: [Morning, Evening]
         name:
           type: string
         phone:
+          type: string
+        email:
+          type: string
+        price:
           type: string
         createdAt:
           type: string
@@ -132,16 +136,15 @@ components:
         - package
         - name
         - phone
+        - email
         - createdAt
     CreateBookingRequest:
       type: object
       properties:
         date:
           type: string
-          description: Date in YYYY-MM-DD format
         time:
           type: string
-          description: Time slot (e.g. "7:00 AM")
         package:
           type: string
           enum: [Morning, Evening]
@@ -149,12 +152,17 @@ components:
           type: string
         phone:
           type: string
+        email:
+          type: string
+        price:
+          type: string
       required:
         - date
         - time
         - package
         - name
         - phone
+        - email
     ErrorResponse:
       type: object
       properties:

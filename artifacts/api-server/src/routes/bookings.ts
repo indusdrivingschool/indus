@@ -23,10 +23,10 @@ router.get("/bookings", async (_req, res) => {
 
 router.post("/book", async (req, res) => {
   try {
-    const { date, time, package: pkg, name, phone } = req.body;
+    const { date, time, package: pkg, name, phone, email, price } = req.body;
 
-    if (!date || !time || !pkg || !name || !phone) {
-      res.status(400).json({ error: "Missing required fields: date, time, package, name, phone" });
+    if (!date || !time || !pkg || !name || !phone || !email) {
+      res.status(400).json({ error: "Missing required fields: date, time, package, name, phone, email" });
       return;
     }
 
@@ -47,7 +47,7 @@ router.post("/book", async (req, res) => {
 
     const [booking] = await db
       .insert(bookingsTable)
-      .values({ date, time, package: pkg, name, phone })
+      .values({ date, time, package: pkg, name, phone, email: email || "", price: price || "" })
       .returning();
 
     const bookingData = {
@@ -56,6 +56,8 @@ router.post("/book", async (req, res) => {
       package: booking.package,
       name: booking.name,
       phone: booking.phone,
+      email: booking.email,
+      price: booking.price,
     };
 
     sendBookingEmail("new", bookingData).catch(console.error);
@@ -103,6 +105,8 @@ router.delete("/book/:id", async (req, res) => {
       package: booking.package,
       name: booking.name,
       phone: booking.phone,
+      email: booking.email,
+      price: booking.price,
     };
 
     sendBookingEmail("cancelled", bookingData).catch(console.error);

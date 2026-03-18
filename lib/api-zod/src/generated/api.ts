@@ -8,7 +8,6 @@
 import * as zod from "zod";
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -16,34 +15,35 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * Returns all bookings
  * @summary Get all bookings
  */
 export const GetBookingsResponseItem = zod.object({
   id: zod.number(),
-  date: zod.string().describe("Date in YYYY-MM-DD format"),
-  time: zod.string().describe('Time slot (e.g. \"7:00 AM\")'),
+  date: zod.string(),
+  time: zod.string(),
   package: zod.enum(["Morning", "Evening"]),
   name: zod.string(),
   phone: zod.string(),
+  email: zod.string(),
+  price: zod.string().optional(),
   createdAt: zod.string(),
 });
 export const GetBookingsResponse = zod.array(GetBookingsResponseItem);
 
 /**
- * Creates a new booking
  * @summary Create a booking
  */
 export const CreateBookingBody = zod.object({
-  date: zod.string().describe("Date in YYYY-MM-DD format"),
-  time: zod.string().describe('Time slot (e.g. \"7:00 AM\")'),
+  date: zod.string(),
+  time: zod.string(),
   package: zod.enum(["Morning", "Evening"]),
   name: zod.string(),
   phone: zod.string(),
+  email: zod.string(),
+  price: zod.string().optional(),
 });
 
 /**
- * Cancels an existing booking
  * @summary Cancel a booking
  */
 export const CancelBookingParams = zod.object({
@@ -52,10 +52,12 @@ export const CancelBookingParams = zod.object({
 
 export const CancelBookingResponse = zod.object({
   id: zod.number(),
-  date: zod.string().describe("Date in YYYY-MM-DD format"),
-  time: zod.string().describe('Time slot (e.g. \"7:00 AM\")'),
+  date: zod.string(),
+  time: zod.string(),
   package: zod.enum(["Morning", "Evening"]),
   name: zod.string(),
   phone: zod.string(),
+  email: zod.string(),
+  price: zod.string().optional(),
   createdAt: zod.string(),
 });

@@ -33,7 +33,6 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const getHealthCheckUrl = () => {
@@ -109,7 +108,6 @@ export function useHealthCheck<
 }
 
 /**
- * Returns all bookings
  * @summary Get all bookings
  */
 export const getGetBookingsUrl = () => {
@@ -185,7 +183,6 @@ export function useGetBookings<
 }
 
 /**
- * Creates a new booking
  * @summary Create a booking
  */
 export const getCreateBookingUrl = () => {
@@ -272,7 +269,6 @@ export const useCreateBooking = <
 };
 
 /**
- * Cancels an existing booking
  * @summary Cancel a booking
  */
 export const getCancelBookingUrl = (id: number) => {

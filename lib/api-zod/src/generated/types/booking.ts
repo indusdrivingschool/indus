@@ -9,12 +9,12 @@ import type { BookingPackage } from "./bookingPackage";
 
 export interface Booking {
   id: number;
-  /** Date in YYYY-MM-DD format */
   date: string;
-  /** Time slot (e.g. "7:00 AM") */
   time: string;
   package: BookingPackage;
   name: string;
   phone: string;
+  email: string;
+  price?: string;
   createdAt: string;
 }

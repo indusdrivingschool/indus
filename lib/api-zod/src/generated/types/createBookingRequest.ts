@@ -8,11 +8,11 @@
 import type { CreateBookingRequestPackage } from "./createBookingRequestPackage";
 
 export interface CreateBookingRequest {
-  /** Date in YYYY-MM-DD format */
   date: string;
-  /** Time slot (e.g. "7:00 AM") */
   time: string;
   package: CreateBookingRequestPackage;
   name: string;
   phone: string;
+  email: string;
+  price?: string;
 }
