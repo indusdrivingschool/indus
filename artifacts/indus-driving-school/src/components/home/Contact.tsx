@@ -1,4 +1,4 @@
-import { MapPin, Phone, Facebook, Navigation2, MessageCircle } from "lucide-react";
+import { MapPin, Phone, Mail, Facebook, Navigation2, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function Contact() {
@@ -33,6 +33,18 @@ export function Contact() {
                   <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Call Us</h4>
                   <a href="tel:+61426826282" className="text-2xl font-bold text-foreground hover:text-primary transition-colors">
                     +61 426 826 282
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-5">
+                <div className="p-4 bg-primary/10 rounded-2xl text-primary shrink-0">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">Email Us</h4>
+                  <a href="mailto:alipkau@gmail.com" className="text-2xl font-bold text-foreground hover:text-primary transition-colors">
+                    alipkau@gmail.com
                   </a>
                 </div>
               </div>

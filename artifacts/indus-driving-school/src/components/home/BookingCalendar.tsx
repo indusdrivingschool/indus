@@ -295,11 +295,19 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
           </div>
 
           {/* Legend */}
-          <div className="flex flex-wrap justify-center sm:justify-start gap-6 mb-8 text-sm font-semibold text-muted-foreground">
-            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-sm" /> Available</div>
-            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-amber-400 shadow-sm" /> Partially Booked</div>
-            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-destructive shadow-sm" /> Fully Booked</div>
-            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-muted border border-border" /> Off / Past</div>
+          <div className="flex flex-wrap justify-center sm:justify-start gap-5 mb-8">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 border border-emerald-300">
+              <div className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="text-sm font-bold text-emerald-800">Available — Click to Book</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-100 border border-red-300">
+              <div className="w-3 h-3 rounded-full bg-red-600" />
+              <span className="text-sm font-bold text-red-800">Booked — Not Available</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted border border-border">
+              <div className="w-3 h-3 rounded-full bg-muted-foreground/30" />
+              <span className="text-sm font-bold text-muted-foreground">Weekend / Past</span>
+            </div>
           </div>
 
           {/* Calendar Grid */}
@@ -319,12 +327,12 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                   disabled={status === "disabled" || status === "booked"}
                   onClick={() => openModalForDate(day)}
                   className={cn(
-                    "relative h-16 md:h-24 rounded-2xl border flex flex-col items-center justify-center transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary/20",
-                    status === "disabled" && "opacity-30 bg-muted/50 border-transparent cursor-not-allowed",
-                    status === "available" && "bg-emerald-50/50 border-emerald-200/60 text-emerald-900 hover:bg-emerald-100 hover:border-emerald-300 hover:-translate-y-1 hover:shadow-lg",
-                    status === "partial" && "bg-amber-50/50 border-amber-200/60 text-amber-900 hover:bg-amber-100 hover:border-amber-300 hover:-translate-y-1 hover:shadow-lg",
-                    status === "booked" && "bg-destructive/5 border-destructive/10 text-destructive cursor-not-allowed",
-                    isSelected && "ring-4 ring-primary/30 border-primary scale-105 shadow-xl bg-primary/5",
+                    "relative h-16 md:h-24 rounded-2xl border-2 flex flex-col items-center justify-center transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary/20",
+                    status === "disabled" && "opacity-25 bg-muted/40 border-transparent cursor-not-allowed",
+                    status === "available" && "bg-emerald-100 border-emerald-400 text-emerald-900 hover:bg-emerald-200 hover:border-emerald-500 hover:-translate-y-1 hover:shadow-lg cursor-pointer",
+                    status === "partial" && "bg-emerald-100 border-emerald-400 text-emerald-900 hover:bg-emerald-200 hover:border-emerald-500 hover:-translate-y-1 hover:shadow-lg cursor-pointer",
+                    status === "booked" && "bg-red-100 border-red-400 text-red-700 cursor-not-allowed",
+                    isSelected && "ring-4 ring-primary/40 border-primary scale-105 shadow-xl",
                     isToday(day) && "font-black"
                   )}
                 >

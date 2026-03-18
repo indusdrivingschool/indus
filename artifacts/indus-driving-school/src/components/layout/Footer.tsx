@@ -49,9 +49,14 @@ export function Footer() {
                 <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
               </a>
             </div>
-            <div className="space-y-2 text-sm text-white/60">
-              <p className="flex items-center gap-2"><Phone size={16} className="text-primary"/> +61 426 826 282</p>
-              <p className="flex items-center gap-2"><MapPin size={16} className="text-primary"/> Blacktown & Penrith, NSW</p>
+            <div className="space-y-3 text-sm text-white/60">
+              <a href="tel:+61426826282" className="flex items-center gap-2 hover:text-primary transition-colors">
+                <Phone size={16} className="text-primary flex-shrink-0" /> +61 426 826 282
+              </a>
+              <a href="mailto:alipkau@gmail.com" className="flex items-center gap-2 hover:text-primary transition-colors">
+                <Mail size={16} className="text-primary flex-shrink-0" /> alipkau@gmail.com
+              </a>
+              <p className="flex items-center gap-2"><MapPin size={16} className="text-primary flex-shrink-0" /> Blacktown & Penrith, NSW</p>
             </div>
           </div>
 
