@@ -30,8 +30,8 @@ router.post("/book", async (req, res) => {
       return;
     }
 
-    if (!["Morning", "Evening"].includes(pkg)) {
-      res.status(400).json({ error: "Package must be Morning or Evening" });
+    if (!pkg || typeof pkg !== "string" || pkg.trim().length < 2) {
+      res.status(400).json({ error: "Invalid package name" });
       return;
     }
 

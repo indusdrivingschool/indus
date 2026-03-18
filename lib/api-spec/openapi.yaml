@@ -118,7 +118,6 @@ components:
           type: string
         package:
           type: string
-          enum: [Morning, Evening]
         name:
           type: string
         phone:
@@ -147,7 +146,6 @@ components:
           type: string
         package:
           type: string
-          enum: [Morning, Evening]
         name:
           type: string
         phone:

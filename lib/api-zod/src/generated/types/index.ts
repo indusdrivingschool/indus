@@ -7,8 +7,6 @@
  */
 
 export * from "./booking";
-export * from "./bookingPackage";
 export * from "./createBookingRequest";
-export * from "./createBookingRequestPackage";
 export * from "./errorResponse";
 export * from "./healthStatus";

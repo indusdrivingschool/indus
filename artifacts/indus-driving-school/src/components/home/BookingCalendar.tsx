@@ -19,13 +19,14 @@ import {
 } from "date-fns";
 import {
   ChevronLeft, ChevronRight, Loader2, Calendar as CalendarIcon,
-  CheckCircle2, ShieldCheck, Lock, Eye, EyeOff, X, CreditCard, Mail
+  CheckCircle2, ShieldCheck, Lock, Eye, EyeOff, X, CreditCard, Mail, Tag
 } from "lucide-react";
 import { useGetBookings, useCreateBooking } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetBookingsQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import type { PackageItem } from "./Packages";
 
 const PAYMENT_NUMBER = "0426826282";
 
@@ -35,7 +36,7 @@ const bookingSchema = z.object({
   phone: z.string().min(8, "Valid phone number is required"),
   email: z.string().email("Valid email is required"),
   time: z.string().min(1, "Please select a time"),
-  package: z.enum(["Morning", "Evening"], { required_error: "Please select a package" }),
+  packageName: z.string().min(2, "Please select a package"),
   price: z.string().optional(),
 });
 type BookingFormValues = z.infer<typeof bookingSchema>;
@@ -45,14 +46,25 @@ const TIME_SLOTS = [
   "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"
 ];
 
-const PACKAGE_PRICES: Record<string, string> = {
-  Morning: "$60 – $500",
-  Evening: "$60 – $500",
-};
+const ALL_PACKAGES = [
+  "60 Minutes Lesson",
+  "1 Hour Mock Test",
+  "2 Hours Lesson",
+  "2 Hrs Mock Test & Full Guidance",
+  "5 Lesson Package",
+  "10 Lesson Package",
+  "Test Car Hire (1 Hour)",
+  "Test Car Hire (2 Hours)",
+];
 
 type ModalStep = "form" | "payment" | "success";
 
-export function BookingCalendar() {
+interface BookingCalendarProps {
+  preselectedPackage?: PackageItem | null;
+  onClearPreselected?: () => void;
+}
+
+export function BookingCalendar({ preselectedPackage, onClearPreselected }: BookingCalendarProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -117,10 +129,10 @@ export function BookingCalendar() {
   // --- Booking Form ---
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: { name: "", phone: "", email: "", time: "", package: "Morning", price: "" }
+    defaultValues: { name: "", phone: "", email: "", time: "", packageName: "", price: "" }
   });
 
-  const watchPackage = form.watch("package");
+  const watchPackageName = form.watch("packageName");
 
   const availableTimes = useMemo(() => {
     if (!selectedDate) return TIME_SLOTS;
@@ -133,6 +145,20 @@ export function BookingCalendar() {
   useMemo(() => {
     if (watchTime && !availableTimes.includes(watchTime)) form.setValue("time", "");
   }, [availableTimes, watchTime, form]);
+
+  const openModalForDate = (day: Date) => {
+    setSelectedDate(day);
+    setModalStep("form");
+    form.reset({
+      name: "",
+      phone: "",
+      email: "",
+      time: "",
+      packageName: preselectedPackage?.title ?? "",
+      price: preselectedPackage ? `$${preselectedPackage.price}` : "",
+    });
+    setIsModalOpen(true);
+  };
 
   // Step 1 → Step 2: validate form then show payment confirmation
   const onFormSubmit = (data: BookingFormValues) => {
@@ -148,11 +174,11 @@ export function BookingCalendar() {
       data: {
         date: format(selectedDate, "yyyy-MM-dd"),
         time: pendingFormData.time,
-        package: pendingFormData.package,
+        package: pendingFormData.packageName,
         name: pendingFormData.name,
         phone: pendingFormData.phone,
         email: pendingFormData.email,
-        price: pendingFormData.price || PACKAGE_PRICES[pendingFormData.package],
+        price: pendingFormData.price || "",
       }
     });
   };
@@ -162,6 +188,7 @@ export function BookingCalendar() {
     setModalStep("form");
     setPaymentConfirmed(false);
     setPendingFormData(null);
+    onClearPreselected?.();
     form.reset();
   };
 
@@ -229,6 +256,22 @@ export function BookingCalendar() {
           <span className="text-primary font-bold tracking-[0.2em] uppercase text-sm mb-4 block">Schedule a Lesson</span>
           <h3 className="text-4xl md:text-5xl font-bold font-display text-foreground">Book Your Session</h3>
           <p className="mt-6 text-muted-foreground text-lg max-w-2xl mx-auto">Select an available date to book your lesson. Payment via bank transfer to <strong>{PAYMENT_NUMBER}</strong>.</p>
+
+          {preselectedPackage && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-primary/10 border border-primary/25 text-primary"
+            >
+              <Tag className="w-4 h-4 flex-shrink-0" />
+              <span className="font-semibold text-sm">
+                Package selected: <strong>{preselectedPackage.title}</strong> — ${preselectedPackage.price} · Now pick a date below
+              </span>
+              <button onClick={onClearPreselected} className="ml-1 hover:text-primary/60 transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
         </motion.div>
 
         <motion.div
@@ -274,7 +317,7 @@ export function BookingCalendar() {
                 <button
                   key={day.toISOString()}
                   disabled={status === "disabled" || status === "booked"}
-                  onClick={() => { setSelectedDate(day); setModalStep("form"); form.reset(); setIsModalOpen(true); }}
+                  onClick={() => openModalForDate(day)}
                   className={cn(
                     "relative h-16 md:h-24 rounded-2xl border flex flex-col items-center justify-center transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary/20",
                     status === "disabled" && "opacity-30 bg-muted/50 border-transparent cursor-not-allowed",
@@ -385,6 +428,18 @@ export function BookingCalendar() {
                 </div>
 
                 <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-5">
+                  {/* Pre-selected package banner */}
+                  {preselectedPackage && (
+                    <div className="flex items-center gap-3 bg-primary/8 border border-primary/25 rounded-xl px-4 py-3 -mt-1">
+                      <Tag className="w-4 h-4 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Pre-selected Package</span>
+                        <p className="text-sm font-semibold text-foreground truncate">{preselectedPackage.title} — <span className="text-primary">${preselectedPackage.price}</span></p>
+                      </div>
+                      <button type="button" onClick={onClearPreselected} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"><X className="w-4 h-4" /></button>
+                    </div>
+                  )}
+
                   {/* Time + Package */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
@@ -405,19 +460,29 @@ export function BookingCalendar() {
                     <div className="space-y-1.5">
                       <label className="text-sm font-bold tracking-wide">Package <span className="text-destructive">*</span></label>
                       <select
-                        {...form.register("package")}
+                        {...form.register("packageName")}
                         className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium text-sm"
                       >
-                        <option value="Morning">☀️ Morning (7AM–12PM)</option>
-                        <option value="Evening">🌆 Evening (12PM–5PM)</option>
+                        <option value="">Select Package</option>
+                        {ALL_PACKAGES.map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
                       </select>
+                      {form.formState.errors.packageName && <p className="text-xs text-destructive">{form.formState.errors.packageName.message}</p>}
                     </div>
                   </div>
 
-                  {/* Price indicator */}
-                  <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-4 py-3">
-                    <CreditCard className="w-4 h-4 text-primary flex-shrink-0" />
-                    <span className="text-sm font-semibold text-primary">{watchPackage} Package: {PACKAGE_PRICES[watchPackage] || "$60 – $500"}</span>
+                  {/* Price field */}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-bold tracking-wide">Agreed Price <span className="text-muted-foreground font-normal">(optional)</span></label>
+                    <input
+                      {...form.register("price")}
+                      placeholder="e.g. $65"
+                      className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium"
+                    />
+                    {watchPackageName && !form.getValues("price") && (
+                      <p className="text-xs text-muted-foreground">Leave blank to use the standard rate.</p>
+                    )}
                   </div>
 
                   {/* Name */}
@@ -491,8 +556,8 @@ export function BookingCalendar() {
                 <div className="bg-secondary/50 rounded-2xl p-4 mb-5 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-bold">{format(selectedDate, "EEE, MMM d, yyyy")}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-bold">{pendingFormData.time}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Package</span><span className="font-bold">{pendingFormData.package}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Price</span><span className="font-bold text-primary">{PACKAGE_PRICES[pendingFormData.package]}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Package</span><span className="font-bold">{pendingFormData.packageName}</span></div>
+                  {pendingFormData.price && <div className="flex justify-between"><span className="text-muted-foreground">Price</span><span className="font-bold text-primary">{pendingFormData.price}</span></div>}
                 </div>
 
                 {/* Payment instruction box */}
@@ -569,7 +634,7 @@ export function BookingCalendar() {
                 <div className="bg-secondary/50 rounded-2xl p-4 mb-5 text-sm text-left space-y-2">
                   <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-bold">{format(selectedDate, "EEE, MMM d, yyyy")}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-bold">{pendingFormData.time}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Package</span><span className="font-bold">{pendingFormData.package}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Package</span><span className="font-bold">{pendingFormData.packageName}</span></div>
                 </div>
 
                 {/* Payment reminder */}

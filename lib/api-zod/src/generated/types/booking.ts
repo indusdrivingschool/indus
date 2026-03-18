@@ -5,13 +5,12 @@
  * Indus Driving School API
  * OpenAPI spec version: 0.1.0
  */
-import type { BookingPackage } from "./bookingPackage";
 
 export interface Booking {
   id: number;
   date: string;
   time: string;
-  package: BookingPackage;
+  package: string;
   name: string;
   phone: string;
   email: string;

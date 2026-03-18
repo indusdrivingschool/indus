@@ -9,19 +9,11 @@ export interface HealthStatus {
   status: string;
 }
 
-export type BookingPackage =
-  (typeof BookingPackage)[keyof typeof BookingPackage];
-
-export const BookingPackage = {
-  Morning: "Morning",
-  Evening: "Evening",
-} as const;
-
 export interface Booking {
   id: number;
   date: string;
   time: string;
-  package: BookingPackage;
+  package: string;
   name: string;
   phone: string;
   email: string;
@@ -29,18 +21,10 @@ export interface Booking {
   createdAt: string;
 }
 
-export type CreateBookingRequestPackage =
-  (typeof CreateBookingRequestPackage)[keyof typeof CreateBookingRequestPackage];
-
-export const CreateBookingRequestPackage = {
-  Morning: "Morning",
-  Evening: "Evening",
-} as const;
-
 export interface CreateBookingRequest {
   date: string;
   time: string;
-  package: CreateBookingRequestPackage;
+  package: string;
   name: string;
   phone: string;
   email: string;
