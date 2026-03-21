@@ -5,11 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
   format,
-  addMonths,
-  subMonths,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
+  addWeeks,
+  subWeeks,
+  startOfWeek,
+  addDays,
   isToday,
   isBefore,
   startOfDay,
@@ -68,7 +67,8 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
+  // Weekly view state
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStep, setModalStep] = useState<ModalStep>("form");
@@ -110,20 +110,18 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
     }
   });
 
-  // --- Calendar Logic ---
-  const daysInMonth = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
-  }, [currentMonth]);
+  // --- Weekly Calendar Logic ---
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  }, [weekStart]);
 
-  const getDateStatus = (day: Date) => {
-    const isPast = isBefore(day, startOfDay(new Date()));
-    if (isPast || isWeekend(day)) return "disabled";
-    const dayBookings = bookings.filter(b => isSameDay(parseISO(b.date), day));
-    if (dayBookings.length >= TIME_SLOTS.length) return "booked";
-    if (dayBookings.length > 0) return "partial";
-    return "available";
+  const isSlotBooked = (day: Date, time: string) => {
+    const dateStr = format(day, "yyyy-MM-dd");
+    return bookings.some(b => b.date === dateStr && b.time === time);
+  };
+
+  const isSlotDisabled = (day: Date) => {
+    return isBefore(day, startOfDay(new Date())) || isWeekend(day);
   };
 
   // --- Booking Form ---
@@ -146,21 +144,21 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
     if (watchTime && !availableTimes.includes(watchTime)) form.setValue("time", "");
   }, [availableTimes, watchTime, form]);
 
-  const openModalForDate = (day: Date) => {
+  const openModalForSlot = (day: Date, time?: string) => {
     setSelectedDate(day);
     setModalStep("form");
     form.reset({
       name: "",
       phone: "",
       email: "",
-      time: "",
+      time: time ?? "",
       packageName: preselectedPackage?.title ?? "",
       price: preselectedPackage ? `$${preselectedPackage.price}` : "",
     });
     setIsModalOpen(true);
   };
 
-  // Step 1 → Step 2: validate form then show payment confirmation
+  // Step 1 → Step 2
   const onFormSubmit = (data: BookingFormValues) => {
     setPendingFormData(data);
     setPaymentConfirmed(false);
@@ -243,19 +241,25 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
     }
   };
 
+  const weekLabel = `${format(weekStart, "d MMM")} – ${format(addDays(weekStart, 6), "d MMM, yyyy")}`;
+
   return (
     <section id="booking" className="py-24 bg-secondary/20 relative">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
           <span className="text-primary font-bold tracking-[0.2em] uppercase text-sm mb-4 block">Schedule a Lesson</span>
           <h3 className="text-4xl md:text-5xl font-bold font-display text-foreground">Book Your Session</h3>
-          <p className="mt-6 text-muted-foreground text-lg max-w-2xl mx-auto">Select an available date to book your lesson. Payment via bank transfer to <strong>{PAYMENT_NUMBER}</strong>.</p>
+          <p className="mt-4 text-muted-foreground text-lg max-w-2xl mx-auto">
+            Click any <span className="text-emerald-600 font-bold">Available</span> slot to book. Payment via bank transfer to <strong>{PAYMENT_NUMBER}</strong>.
+          </p>
 
           {preselectedPackage && (
             <motion.div
@@ -265,7 +269,7 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
             >
               <Tag className="w-4 h-4 flex-shrink-0" />
               <span className="font-semibold text-sm">
-                Package selected: <strong>{preselectedPackage.title}</strong> — ${preselectedPackage.price} · Now pick a date below
+                Package selected: <strong>{preselectedPackage.title}</strong> — ${preselectedPackage.price} · Now pick a slot below
               </span>
               <button onClick={onClearPreselected} className="ml-1 hover:text-primary/60 transition-colors">
                 <X className="w-3.5 h-3.5" />
@@ -274,77 +278,132 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
           )}
         </motion.div>
 
+        {/* Weekly Slot Grid */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="bg-card rounded-3xl shadow-2xl border border-border/50 p-6 md:p-10"
+          className="bg-card rounded-3xl shadow-2xl border border-border/50 overflow-hidden"
         >
-          {/* Calendar Header */}
-          <div className="flex flex-col sm:flex-row items-center justify-between mb-10 gap-4">
-            <h4 className="text-3xl font-bold font-display text-foreground capitalize tracking-tight">{format(currentMonth, "MMMM yyyy")}</h4>
-            <div className="flex gap-3">
-              <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-3 rounded-xl hover:bg-secondary transition-all border border-border shadow-sm hover:shadow">
-                <ChevronLeft className="w-5 h-5 text-foreground" />
-              </button>
-              <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-3 rounded-xl hover:bg-secondary transition-all border border-border shadow-sm hover:shadow">
-                <ChevronRight className="w-5 h-5 text-foreground" />
-              </button>
+          {/* Grid Header */}
+          <div className="flex items-center justify-between px-6 py-5 border-b border-border/50 bg-card">
+            <button
+              onClick={() => setWeekStart(subWeeks(weekStart, 1))}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border font-semibold text-sm hover:bg-secondary transition-all"
+            >
+              <ChevronLeft className="w-4 h-4" /> Prev Week
+            </button>
+            <div className="text-center">
+              <h4 className="font-bold text-lg text-foreground">{weekLabel}</h4>
+              {/* Legend */}
+              <div className="flex items-center justify-center gap-4 mt-2">
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                  <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Available
+                </span>
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-red-700">
+                  <span className="w-3 h-3 rounded-sm bg-red-500 inline-block" /> Booked
+                </span>
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <span className="w-3 h-3 rounded-sm bg-muted border border-border inline-block" /> Unavailable
+                </span>
+              </div>
             </div>
+            <button
+              onClick={() => setWeekStart(addWeeks(weekStart, 1))}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border font-semibold text-sm hover:bg-secondary transition-all"
+            >
+              Next Week <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Legend */}
-          <div className="flex flex-wrap justify-center sm:justify-start gap-5 mb-8">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 border border-emerald-300">
-              <div className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span className="text-sm font-bold text-emerald-800">Available — Click to Book</span>
+          {/* Table */}
+          {isLoadingBookings ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-100 border border-red-300">
-              <div className="w-3 h-3 rounded-full bg-red-600" />
-              <span className="text-sm font-bold text-red-800">Booked — Not Available</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted border border-border">
-              <div className="w-3 h-3 rounded-full bg-muted-foreground/30" />
-              <span className="text-sm font-bold text-muted-foreground">Weekend / Past</span>
-            </div>
-          </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse min-w-[700px]">
+                {/* Day headers */}
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="w-24 py-3 px-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider bg-secondary/30 border-r border-border/30">
+                      Time
+                    </th>
+                    {weekDays.map((day) => {
+                      const disabled = isSlotDisabled(day);
+                      return (
+                        <th
+                          key={day.toISOString()}
+                          className={cn(
+                            "py-3 px-2 text-center text-xs font-bold uppercase tracking-wider border-r border-border/30 last:border-r-0",
+                            disabled ? "bg-muted/30 text-muted-foreground" : "bg-secondary/30 text-foreground",
+                            isToday(day) && "bg-primary/5 text-primary"
+                          )}
+                        >
+                          <div className="font-bold">{format(day, "EEE")}</div>
+                          <div className={cn("text-xs mt-0.5", isToday(day) ? "text-primary font-bold" : "text-muted-foreground font-medium")}>
+                            {format(day, "d MMM")}
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
 
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-3 md:gap-5 mb-4">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="text-center font-bold tracking-wide text-xs uppercase text-muted-foreground py-2">{day}</div>
-            ))}
-            {Array.from({ length: daysInMonth[0].getDay() }).map((_, i) => (
-              <div key={`empty-${i}`} />
-            ))}
-            {daysInMonth.map((day) => {
-              const status = getDateStatus(day);
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
-              return (
-                <button
-                  key={day.toISOString()}
-                  disabled={status === "disabled" || status === "booked"}
-                  onClick={() => openModalForDate(day)}
-                  className={cn(
-                    "relative h-16 md:h-24 rounded-2xl border-2 flex flex-col items-center justify-center transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary/20",
-                    status === "disabled" && "opacity-25 bg-muted/40 border-transparent cursor-not-allowed",
-                    status === "available" && "bg-emerald-100 border-emerald-400 text-emerald-900 hover:bg-emerald-200 hover:border-emerald-500 hover:-translate-y-1 hover:shadow-lg cursor-pointer",
-                    status === "partial" && "bg-emerald-100 border-emerald-400 text-emerald-900 hover:bg-emerald-200 hover:border-emerald-500 hover:-translate-y-1 hover:shadow-lg cursor-pointer",
-                    status === "booked" && "bg-red-100 border-red-400 text-red-700 cursor-not-allowed",
-                    isSelected && "ring-4 ring-primary/40 border-primary scale-105 shadow-xl",
-                    isToday(day) && "font-black"
-                  )}
-                >
-                  <span className={cn("text-xl md:text-2xl font-display", isToday(day) ? "text-primary" : "")}>{format(day, "d")}</span>
-                  {isToday(day) && <div className="absolute bottom-2 w-2 h-2 rounded-full bg-primary shadow-sm" />}
-                </button>
-              );
-            })}
-          </div>
+                {/* Time slot rows */}
+                <tbody>
+                  {TIME_SLOTS.map((time, rowIdx) => (
+                    <tr
+                      key={time}
+                      className={cn(
+                        "border-b border-border/30 last:border-b-0",
+                        rowIdx % 2 === 0 ? "bg-white" : "bg-secondary/10"
+                      )}
+                    >
+                      {/* Time label */}
+                      <td className="py-2.5 px-3 text-xs font-bold text-muted-foreground whitespace-nowrap border-r border-border/30 bg-secondary/20">
+                        {time}
+                      </td>
+
+                      {/* Day cells */}
+                      {weekDays.map((day) => {
+                        const disabled = isSlotDisabled(day);
+                        const booked = !disabled && isSlotBooked(day, time);
+                        const available = !disabled && !booked;
+
+                        return (
+                          <td
+                            key={day.toISOString()}
+                            className="py-2 px-2 text-center border-r border-border/30 last:border-r-0"
+                          >
+                            {disabled ? (
+                              <span className="inline-block w-full text-center text-xs text-muted-foreground/40 py-1">—</span>
+                            ) : booked ? (
+                              <span className="inline-block px-3 py-1.5 rounded-md bg-red-500 text-white text-xs font-bold w-full text-center select-none">
+                                Booked
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => openModalForSlot(day, time)}
+                                className="inline-block px-3 py-1.5 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold w-full text-center transition-colors duration-150 active:scale-95"
+                              >
+                                Available
+                              </button>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </motion.div>
 
-        {/* Bookings List */}
+        {/* Upcoming Bookings List */}
         <div className="mt-20">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
             <h3 className="text-3xl font-bold font-display">Upcoming Bookings</h3>
@@ -436,9 +495,8 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                 </div>
 
                 <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-5">
-                  {/* Pre-selected package banner */}
                   {preselectedPackage && (
-                    <div className="flex items-center gap-3 bg-primary/8 border border-primary/25 rounded-xl px-4 py-3 -mt-1">
+                    <div className="flex items-center gap-3 bg-primary/5 border border-primary/25 rounded-xl px-4 py-3">
                       <Tag className="w-4 h-4 text-primary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <span className="text-xs font-bold text-primary uppercase tracking-wider">Pre-selected Package</span>
@@ -448,7 +506,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                     </div>
                   )}
 
-                  {/* Time + Package */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-sm font-bold tracking-wide">Time Slot <span className="text-destructive">*</span></label>
@@ -480,7 +537,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                     </div>
                   </div>
 
-                  {/* Price field */}
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold tracking-wide">Agreed Price <span className="text-muted-foreground font-normal">(optional)</span></label>
                     <input
@@ -488,12 +544,8 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                       placeholder="e.g. $65"
                       className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium"
                     />
-                    {watchPackageName && !form.getValues("price") && (
-                      <p className="text-xs text-muted-foreground">Leave blank to use the standard rate.</p>
-                    )}
                   </div>
 
-                  {/* Name */}
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold tracking-wide">Full Name <span className="text-destructive">*</span></label>
                     <input
@@ -504,7 +556,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                     {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
                   </div>
 
-                  {/* Phone */}
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold tracking-wide">Phone Number <span className="text-destructive">*</span></label>
                     <input
@@ -515,7 +566,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                     {form.formState.errors.phone && <p className="text-xs text-destructive">{form.formState.errors.phone.message}</p>}
                   </div>
 
-                  {/* Email */}
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold tracking-wide">Email Address <span className="text-destructive">*</span></label>
                     <input
@@ -560,7 +610,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                   <p className="text-muted-foreground mt-2 text-sm">Please send payment before confirming your booking</p>
                 </div>
 
-                {/* Booking summary */}
                 <div className="bg-secondary/50 rounded-2xl p-4 mb-5 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-bold">{format(selectedDate, "EEE, MMM d, yyyy")}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-bold">{pendingFormData.time}</span></div>
@@ -568,14 +617,12 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                   {pendingFormData.price && <div className="flex justify-between"><span className="text-muted-foreground">Price</span><span className="font-bold text-primary">{pendingFormData.price}</span></div>}
                 </div>
 
-                {/* Payment instruction box */}
                 <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-5 text-center">
                   <p className="text-sm font-semibold text-amber-800 mb-1">Send Payment To</p>
                   <p className="text-3xl font-black text-amber-900 tracking-wider">{PAYMENT_NUMBER}</p>
                   <p className="text-xs text-amber-700 mt-2">Bank transfer / PayID / Cash</p>
                 </div>
 
-                {/* Checkbox */}
                 <label className="flex items-start gap-3 cursor-pointer mb-6 group">
                   <div className="relative mt-0.5">
                     <input
@@ -597,10 +644,7 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                 </label>
 
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => setModalStep("form")}
-                    className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all text-sm"
-                  >
+                  <button onClick={() => setModalStep("form")} className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all text-sm">
                     ← Back
                   </button>
                   <button
@@ -638,14 +682,12 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                   Details have been sent to <strong>{pendingFormData.email}</strong>
                 </p>
 
-                {/* Summary */}
                 <div className="bg-secondary/50 rounded-2xl p-4 mb-5 text-sm text-left space-y-2">
                   <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-bold">{format(selectedDate, "EEE, MMM d, yyyy")}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-bold">{pendingFormData.time}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Package</span><span className="font-bold">{pendingFormData.packageName}</span></div>
                 </div>
 
-                {/* Payment reminder */}
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
                   <div className="flex items-center justify-center gap-2 mb-1">
                     <CreditCard className="w-4 h-4 text-amber-600" />
@@ -659,10 +701,7 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                   <span>Confirmation email sent to {pendingFormData.email}</span>
                 </div>
 
-                <button
-                  onClick={closeModal}
-                  className="w-full py-3.5 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all"
-                >
+                <button onClick={closeModal} className="w-full py-3.5 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all">
                   Done
                 </button>
               </motion.div>
