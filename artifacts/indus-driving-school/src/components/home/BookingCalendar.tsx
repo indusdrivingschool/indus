@@ -67,8 +67,15 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Weekly view state
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  // Weekly view state — start from Monday of the current week,
+  // but if today is a weekend (Sat/Sun) jump to next week so users
+  // immediately see bookable slots instead of an all-disabled grid.
+  const [weekStart, setWeekStart] = useState(() => {
+    const today = new Date();
+    const thisMonday = startOfWeek(today, { weekStartsOn: 1 });
+    const dayOfWeek = today.getDay(); // 0=Sun, 6=Sat
+    return (dayOfWeek === 0 || dayOfWeek === 6) ? addWeeks(thisMonday, 1) : thisMonday;
+  });
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStep, setModalStep] = useState<ModalStep>("form");
