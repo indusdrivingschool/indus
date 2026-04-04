@@ -24,7 +24,6 @@ export function Hero() {
       },
     },
   };
-}
 
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center pt-20">
@@ -35,7 +34,6 @@ export function Hero() {
           alt="Modern car steering wheel"
           className="w-full h-full object-cover"
         />
-        {/* Dark overlay for contrast */}
         <div className="absolute inset-0 bg-black/60" />
       </div>
 
@@ -81,6 +79,7 @@ export function Hero() {
             Book Your Lesson
             <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </a>
+
           <a
             href="#about"
             className="flex items-center justify-center px-8 py-4 bg-transparent text-white border-2 border-white/30 rounded-full font-semibold text-lg hover:bg-white/10 transition-all"
@@ -101,17 +100,18 @@ export function Hero() {
           <p className="text-3xl font-display font-bold text-white mb-1">13+</p>
           <p className="text-white/60 text-sm font-medium uppercase tracking-wider">Years Experience</p>
         </div>
+
         <div className="px-6 text-center flex-1">
           <p className="text-3xl font-display font-bold text-white mb-1">500+</p>
           <p className="text-white/60 text-sm font-medium uppercase tracking-wider">Students Trained</p>
         </div>
+
         <div className="px-6 text-center flex-1">
           <p className="text-lg font-bold text-white mb-1">Blacktown & Penrith</p>
           <p className="text-white/60 text-sm font-medium uppercase tracking-wider">Service Areas</p>
         </div>
       </motion.div>
 
-      {/* Decorative gradient overlay at bottom to blend with next section */}
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />
     </section>
   );
