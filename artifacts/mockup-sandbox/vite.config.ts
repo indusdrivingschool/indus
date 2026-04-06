@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
-import { mockupPreviewPlugin } from "./mockupPreviewPlugin";
+
 
 // ✅ SAFE defaults (no crash on Cloudflare)
 const port = Number(process.env.PORT) || 5173;
@@ -12,7 +12,12 @@ const basePath = process.env.BASE_PATH || "/";
 export default defineConfig({
   base: basePath,
   plugins: [
-    mockupPreviewPlugin(),
+
+
+plugins: [
+  react(),
+  tailwindcss(),
+    
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
