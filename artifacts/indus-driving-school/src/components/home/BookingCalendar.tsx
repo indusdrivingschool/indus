@@ -123,9 +123,11 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
   }, [weekStart]);
 
   const isSlotBooked = (day: Date, time: string) => {
-    const dateStr = format(day, "yyyy-MM-dd");
-    return bookings.some(b => b.date === dateStr && b.time === time);
-  };
+  const dateStr = format(day, "yyyy-MM-dd");
+  const safeBookings = Array.isArray(bookings) ? bookings : [];
+
+  return safeBookings.some(b => b.date === dateStr && b.time === time);
+};
 
   const isSlotDisabled = (day: Date) => {
     return isBefore(day, startOfDay(new Date())) || isWeekend(day);
