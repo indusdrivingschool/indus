@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,16 +6,9 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import { MessageCircle } from "lucide-react";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
-function Router() {
+function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -27,14 +20,12 @@ function Router() {
 function WhatsAppButton() {
   return (
     <a
-      href="https://wa.me/61426826282?text=Hi%2C%20I%20would%20like%20to%20book%20a%20driving%20lesson%20with%20Indus%20Driving%20School."
+      href="https://wa.me/61426826282"
       target="_blank"
       rel="noreferrer"
-      title="Chat on WhatsApp"
-      className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 bg-[#25D366] text-white rounded-full shadow-lg hover:scale-110 hover:shadow-2xl transition-all duration-300"
+      className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center"
     >
-      <span className="absolute inline-flex h-full w-full rounded-full bg-[#25D366] opacity-30 animate-ping"></span>
-      <MessageCircle className="w-8 h-8 fill-current relative z-10" />
+      <MessageCircle className="w-7 h-7" />
     </a>
   );
 }
@@ -43,11 +34,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {/* ✅ FIX: removed base */}
-        <WouterRouter>
-          <Router />
-        </WouterRouter>
-
+        <AppRouter />
         <WhatsAppButton />
         <Toaster />
       </TooltipProvider>
