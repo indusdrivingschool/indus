@@ -23,8 +23,8 @@ import {
 import { useGetBookings, useCreateBooking } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetBookingsQueryKey } from "@workspace/api-client-react";
-import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { useToast } from "../../hooks/use-toast";
+import { cn } from "../../lib/utils";
 import type { PackageItem } from "./Packages";
 
 const PAYMENT_NUMBER = "0426826282";
