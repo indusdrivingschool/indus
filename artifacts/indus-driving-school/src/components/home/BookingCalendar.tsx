@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+
 import {
   format,
   addWeeks,
@@ -10,21 +11,37 @@ import {
   startOfWeek,
   addDays,
   isToday,
-  isBefore,import { useToast } from "../../hooks/use-toast";
+  isBefore,
   startOfDay,
   isWeekend,
   isSameDay,
   parseISO
 } from "date-fns";
+
 import {
-  ChevronLeft, ChevronRight, Loader2, Calendar as CalendarIcon,
-  CheckCircle2, ShieldCheck, Lock, Eye, EyeOff, X, CreditCard, Mail, Tag
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  ShieldCheck,
+  Lock,
+  Eye,
+  EyeOff,
+  X,
+  CreditCard,
+  Mail,
+  Tag
 } from "lucide-react";
+
 import { useGetBookings, useCreateBooking } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetBookingsQueryKey } from "@workspace/api-client-react";
+
+// ✅ FIXED IMPORTS (ONLY ONE TIME, OUTSIDE)
 import { useToast } from "../../hooks/use-toast";
 import { cn } from "../../lib/utils";
+
 import type { PackageItem } from "./Packages";
 
 const PAYMENT_NUMBER = "0426826282";
