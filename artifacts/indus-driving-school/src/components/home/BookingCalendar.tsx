@@ -34,11 +34,7 @@ import {
   Tag
 } from "lucide-react";
 
-import { useGetBookings, useCreateBooking } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { getGetBookingsQueryKey } from "@workspace/api-client-react";
-
-// ✅ FIXED IMPORTS (ONLY ONE TIME, OUTSIDE)
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../hooks/use-toast";
 import { cn } from "../../lib/utils";
 
@@ -46,7 +42,38 @@ import type { PackageItem } from "./Packages";
 
 const PAYMENT_NUMBER = "0426826282";
 
-// --- Form Schema ---
+interface Booking {
+  id: number;
+  date: string;
+  time: string;
+  package: string;
+  name: string;
+  phone: string;
+  email: string;
+  price?: string;
+}
+
+const BOOKINGS_QUERY_KEY = ["bookings"];
+
+async function fetchBookings(): Promise<Booking[]> {
+  const res = await fetch("/api/book");
+  if (!res.ok) throw new Error("Failed to fetch bookings");
+  return res.json();
+}
+
+async function createBooking(data: Omit<Booking, "id">): Promise<Booking> {
+  const res = await fetch("/api/book", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw err;
+  }
+  return res.json();
+}
+
 const bookingSchema = z.object({
   name: z.string().min(2, "Name is required"),
   phone: z.string().min(8, "Valid phone number is required"),
@@ -84,13 +111,10 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Weekly view state — start from Monday of the current week,
-  // but if today is a weekend (Sat/Sun) jump to next week so users
-  // immediately see bookable slots instead of an all-disabled grid.
   const [weekStart, setWeekStart] = useState(() => {
     const today = new Date();
     const thisMonday = startOfWeek(today, { weekStartsOn: 1 });
-    const dayOfWeek = today.getDay(); // 0=Sun, 6=Sat
+    const dayOfWeek = today.getDay();
     return (dayOfWeek === 0 || dayOfWeek === 6) ? addWeeks(thisMonday, 1) : thisMonday;
   });
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -99,7 +123,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<BookingFormValues | null>(null);
 
-  // Admin state
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
@@ -107,50 +130,47 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
   const [showPassword, setShowPassword] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  // Cancel state
   const [cancelTarget, setCancelTarget] = useState<{ id: number; name: string } | null>(null);
   const [cancelPassword, setCancelPassword] = useState("");
   const [cancelPasswordVisible, setCancelPasswordVisible] = useState(false);
   const [cancelError, setCancelError] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
 
-  // --- API Hooks ---
-  const { data: bookings = [], isLoading: isLoadingBookings } = useGetBookings();
+  const { data: bookings = [], isLoading: isLoadingBookings } = useQuery<Booking[]>({
+    queryKey: BOOKINGS_QUERY_KEY,
+    queryFn: fetchBookings,
+  });
 
-  const createMutation = useCreateBooking({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetBookingsQueryKey() });
-        setModalStep("success");
-      },
-      onError: (err: any) => {
-        toast({
-          title: "Booking Failed",
-          description: err?.error || "This slot might be taken. Please try another.",
-          variant: "destructive"
-        });
-        setModalStep("form");
-      }
+  const createMutation = useMutation({
+    mutationFn: createBooking,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: BOOKINGS_QUERY_KEY });
+      setModalStep("success");
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Booking Failed",
+        description: err?.error || "This slot might be taken. Please try another.",
+        variant: "destructive"
+      });
+      setModalStep("form");
     }
   });
 
-  // --- Weekly Calendar Logic ---
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
 
   const isSlotBooked = (day: Date, time: string) => {
-  const dateStr = format(day, "yyyy-MM-dd");
-  const safeBookings = Array.isArray(bookings) ? bookings : [];
-
-  return safeBookings.some(b => b.date === dateStr && b.time === time);
-};
+    const dateStr = format(day, "yyyy-MM-dd");
+    const safeBookings = Array.isArray(bookings) ? bookings : [];
+    return safeBookings.some(b => b.date === dateStr && b.time === time);
+  };
 
   const isSlotDisabled = (day: Date) => {
     return isBefore(day, startOfDay(new Date())) || isWeekend(day);
   };
 
-  // --- Booking Form ---
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
     defaultValues: { name: "", phone: "", email: "", time: "", packageName: "", price: "" }
@@ -184,26 +204,22 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
     setIsModalOpen(true);
   };
 
-  // Step 1 → Step 2
   const onFormSubmit = (data: BookingFormValues) => {
     setPendingFormData(data);
     setPaymentConfirmed(false);
     setModalStep("payment");
   };
 
-  // Step 2 → confirm booking
   const onConfirmBooking = () => {
     if (!selectedDate || !pendingFormData) return;
     createMutation.mutate({
-      data: {
-        date: format(selectedDate, "yyyy-MM-dd"),
-        time: pendingFormData.time,
-        package: pendingFormData.packageName,
-        name: pendingFormData.name,
-        phone: pendingFormData.phone,
-        email: pendingFormData.email,
-        price: pendingFormData.price || "",
-      }
+      date: format(selectedDate, "yyyy-MM-dd"),
+      time: pendingFormData.time,
+      package: pendingFormData.packageName,
+      name: pendingFormData.name,
+      phone: pendingFormData.phone,
+      email: pendingFormData.email,
+      price: pendingFormData.price || "",
     });
   };
 
@@ -216,7 +232,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
     form.reset();
   };
 
-  // --- Admin Login ---
   const handleAdminLogin = async () => {
     setIsVerifying(true);
     setAdminError("");
@@ -240,7 +255,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
     }
   };
 
-  // --- Cancel with password ---
   const handleCancelConfirm = async () => {
     if (!cancelTarget) return;
     setIsCancelling(true);
@@ -251,7 +265,7 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
         headers: { "x-admin-password": cancelPassword }
       });
       if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: getGetBookingsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: BOOKINGS_QUERY_KEY });
         toast({ title: "Booking Cancelled", description: "The booking has been removed." });
         setCancelTarget(null);
         setCancelPassword("");
@@ -272,8 +286,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
   return (
     <section id="booking" className="py-24 bg-secondary/20 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-        {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -286,7 +298,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
           <p className="mt-4 text-muted-foreground text-lg max-w-2xl mx-auto">
             Click any <span className="text-emerald-600 font-bold">Available</span> slot to book. Payment via bank transfer to <strong>{PAYMENT_NUMBER}</strong>.
           </p>
-
           {preselectedPackage && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -304,7 +315,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
           )}
         </motion.div>
 
-        {/* Weekly Slot Grid */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -312,7 +322,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
           transition={{ duration: 0.6, delay: 0.1 }}
           className="bg-card rounded-3xl shadow-2xl border border-border/50 overflow-hidden"
         >
-          {/* Grid Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-border/50 bg-card">
             <button
               onClick={() => setWeekStart(subWeeks(weekStart, 1))}
@@ -322,7 +331,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
             </button>
             <div className="text-center">
               <h4 className="font-bold text-lg text-foreground">{weekLabel}</h4>
-              {/* Legend */}
               <div className="flex items-center justify-center gap-4 mt-2">
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
                   <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Available
@@ -343,7 +351,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
             </button>
           </div>
 
-          {/* Table */}
           {isLoadingBookings ? (
             <div className="flex justify-center items-center h-48">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -351,7 +358,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse min-w-[700px]">
-                {/* Day headers */}
                 <thead>
                   <tr className="border-b border-border/50">
                     <th className="w-24 py-3 px-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider bg-secondary/30 border-r border-border/30">
@@ -377,8 +383,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                     })}
                   </tr>
                 </thead>
-
-                {/* Time slot rows */}
                 <tbody>
                   {TIME_SLOTS.map((time, rowIdx) => (
                     <tr
@@ -388,17 +392,12 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                         rowIdx % 2 === 0 ? "bg-white" : "bg-secondary/10"
                       )}
                     >
-                      {/* Time label */}
                       <td className="py-2.5 px-3 text-xs font-bold text-muted-foreground whitespace-nowrap border-r border-border/30 bg-secondary/20">
                         {time}
                       </td>
-
-                      {/* Day cells */}
                       {weekDays.map((day) => {
                         const disabled = isSlotDisabled(day);
                         const booked = !disabled && isSlotBooked(day, time);
-                        const available = !disabled && !booked;
-
                         return (
                           <td
                             key={day.toISOString()}
@@ -429,7 +428,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
           )}
         </motion.div>
 
-        {/* Upcoming Bookings List */}
         <div className="mt-20">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
             <h3 className="text-3xl font-bold font-display">Upcoming Bookings</h3>
@@ -494,7 +492,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
         </div>
       </div>
 
-      {/* ── BOOKING MODAL ── */}
       <AnimatePresence>
         {isModalOpen && selectedDate && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -503,8 +500,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={closeModal}
             />
-
-            {/* STEP 1 – Booking Form */}
             {modalStep === "form" && (
               <motion.div
                 key="form"
@@ -519,7 +514,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                     <span className="font-bold text-primary">{format(selectedDate, "EEEE, MMMM d, yyyy")}</span>
                   </p>
                 </div>
-
                 <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-5">
                   {preselectedPackage && (
                     <div className="flex items-center gap-3 bg-primary/5 border border-primary/25 rounded-xl px-4 py-3">
@@ -531,7 +525,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                       <button type="button" onClick={onClearPreselected} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"><X className="w-4 h-4" /></button>
                     </div>
                   )}
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-sm font-bold tracking-wide">Time Slot <span className="text-destructive">*</span></label>
@@ -562,56 +555,29 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                       {form.formState.errors.packageName && <p className="text-xs text-destructive">{form.formState.errors.packageName.message}</p>}
                     </div>
                   </div>
-
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold tracking-wide">Agreed Price <span className="text-muted-foreground font-normal">(optional)</span></label>
-                    <input
-                      {...form.register("price")}
-                      placeholder="e.g. $65"
-                      className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium"
-                    />
+                    <input {...form.register("price")} placeholder="e.g. $65" className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium" />
                   </div>
-
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold tracking-wide">Full Name <span className="text-destructive">*</span></label>
-                    <input
-                      {...form.register("name")}
-                      placeholder="John Doe"
-                      className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium"
-                    />
+                    <input {...form.register("name")} placeholder="John Doe" className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium" />
                     {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
                   </div>
-
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold tracking-wide">Phone Number <span className="text-destructive">*</span></label>
-                    <input
-                      {...form.register("phone")}
-                      placeholder="+61 400 000 000"
-                      className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium"
-                    />
+                    <input {...form.register("phone")} placeholder="+61 400 000 000" className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium" />
                     {form.formState.errors.phone && <p className="text-xs text-destructive">{form.formState.errors.phone.message}</p>}
                   </div>
-
                   <div className="space-y-1.5">
                     <label className="text-sm font-bold tracking-wide">Email Address <span className="text-destructive">*</span></label>
-                    <input
-                      {...form.register("email")}
-                      type="email"
-                      placeholder="you@example.com"
-                      className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium"
-                    />
+                    <input {...form.register("email")} type="email" placeholder="you@example.com" className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/10 transition-all outline-none font-medium" />
                     {form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}
                     <p className="text-xs text-muted-foreground">Confirmation will be sent to this email.</p>
                   </div>
-
                   <div className="pt-4 flex gap-3">
-                    <button type="button" onClick={closeModal} className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all">
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 py-3.5 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/30 hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-xl transition-all flex justify-center items-center gap-2"
-                    >
+                    <button type="button" onClick={closeModal} className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all">Cancel</button>
+                    <button type="submit" className="flex-1 py-3.5 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/30 hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-xl transition-all flex justify-center items-center gap-2">
                       Next: Payment →
                     </button>
                   </div>
@@ -619,7 +585,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
               </motion.div>
             )}
 
-            {/* STEP 2 – Payment Confirmation */}
             {modalStep === "payment" && pendingFormData && (
               <motion.div
                 key="payment"
@@ -635,32 +600,21 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                   <h3 className="text-2xl font-bold font-display">Payment Required</h3>
                   <p className="text-muted-foreground mt-2 text-sm">Please send payment before confirming your booking</p>
                 </div>
-
                 <div className="bg-secondary/50 rounded-2xl p-4 mb-5 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-bold">{format(selectedDate, "EEE, MMM d, yyyy")}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-bold">{pendingFormData.time}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Package</span><span className="font-bold">{pendingFormData.packageName}</span></div>
                   {pendingFormData.price && <div className="flex justify-between"><span className="text-muted-foreground">Price</span><span className="font-bold text-primary">{pendingFormData.price}</span></div>}
                 </div>
-
                 <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-5 text-center">
                   <p className="text-sm font-semibold text-amber-800 mb-1">Send Payment To</p>
                   <p className="text-3xl font-black text-amber-900 tracking-wider">{PAYMENT_NUMBER}</p>
                   <p className="text-xs text-amber-700 mt-2">Bank transfer / PayID / Cash</p>
                 </div>
-
                 <label className="flex items-start gap-3 cursor-pointer mb-6 group">
                   <div className="relative mt-0.5">
-                    <input
-                      type="checkbox"
-                      checked={paymentConfirmed}
-                      onChange={e => setPaymentConfirmed(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <div className={cn(
-                      "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                      paymentConfirmed ? "bg-primary border-primary" : "border-border bg-background group-hover:border-primary/50"
-                    )}>
+                    <input type="checkbox" checked={paymentConfirmed} onChange={e => setPaymentConfirmed(e.target.checked)} className="sr-only" />
+                    <div className={cn("w-5 h-5 rounded border-2 flex items-center justify-center transition-all", paymentConfirmed ? "bg-primary border-primary" : "border-border bg-background group-hover:border-primary/50")}>
                       {paymentConfirmed && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                     </div>
                   </div>
@@ -668,11 +622,8 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                     I have sent the payment to <strong>{PAYMENT_NUMBER}</strong> and understand my booking will be confirmed upon receipt.
                   </span>
                 </label>
-
                 <div className="flex gap-3">
-                  <button onClick={() => setModalStep("form")} className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all text-sm">
-                    ← Back
-                  </button>
+                  <button onClick={() => setModalStep("form")} className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all text-sm">← Back</button>
                   <button
                     onClick={onConfirmBooking}
                     disabled={!paymentConfirmed || createMutation.isPending}
@@ -685,7 +636,6 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
               </motion.div>
             )}
 
-            {/* STEP 3 – Success */}
             {modalStep === "success" && pendingFormData && (
               <motion.div
                 key="success"
@@ -694,26 +644,16 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
                 className="bg-card relative z-10 w-full max-w-md rounded-3xl shadow-2xl p-8 border border-border text-center"
               >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", delay: 0.1 }}
-                  className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-6"
-                >
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }} className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-6">
                   <CheckCircle2 className="w-10 h-10 text-emerald-600" />
                 </motion.div>
-
                 <h3 className="text-2xl font-bold font-display mb-2">Booking Confirmed!</h3>
-                <p className="text-muted-foreground mb-6">
-                  Details have been sent to <strong>{pendingFormData.email}</strong>
-                </p>
-
+                <p className="text-muted-foreground mb-6">Details have been sent to <strong>{pendingFormData.email}</strong></p>
                 <div className="bg-secondary/50 rounded-2xl p-4 mb-5 text-sm text-left space-y-2">
                   <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-bold">{format(selectedDate, "EEE, MMM d, yyyy")}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-bold">{pendingFormData.time}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Package</span><span className="font-bold">{pendingFormData.packageName}</span></div>
                 </div>
-
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
                   <div className="flex items-center justify-center gap-2 mb-1">
                     <CreditCard className="w-4 h-4 text-amber-600" />
@@ -721,36 +661,22 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                   </div>
                   <p className="text-sm text-amber-700">Send payment to <strong className="text-lg">{PAYMENT_NUMBER}</strong></p>
                 </div>
-
                 <div className="flex items-center gap-2 justify-center text-xs text-muted-foreground mb-6">
                   <Mail className="w-3.5 h-3.5" />
                   <span>Confirmation email sent to {pendingFormData.email}</span>
                 </div>
-
-                <button onClick={closeModal} className="w-full py-3.5 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all">
-                  Done
-                </button>
+                <button onClick={closeModal} className="w-full py-3.5 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all">Done</button>
               </motion.div>
             )}
           </div>
         )}
       </AnimatePresence>
 
-      {/* ── ADMIN LOGIN MODAL ── */}
       <AnimatePresence>
         {showAdminLogin && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => { setShowAdminLogin(false); setAdminError(""); setAdminPassword(""); }}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card relative z-10 w-full max-w-sm rounded-3xl shadow-2xl p-8 border border-border"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowAdminLogin(false); setAdminError(""); setAdminPassword(""); }} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-card relative z-10 w-full max-w-sm rounded-3xl shadow-2xl p-8 border border-border">
               <div className="text-center mb-8">
                 <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-5 shadow-inner">
                   <Lock className="w-8 h-8 text-foreground/70" />
@@ -774,14 +700,8 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                 </div>
                 {adminError && <p className="text-sm text-destructive font-medium bg-destructive/10 px-4 py-3 rounded-xl border border-destructive/20">{adminError}</p>}
                 <div className="flex gap-3 pt-4">
-                  <button onClick={() => { setShowAdminLogin(false); setAdminError(""); setAdminPassword(""); }} className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all">
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAdminLogin}
-                    disabled={!adminPassword || isVerifying}
-                    className="flex-1 py-3.5 rounded-xl bg-foreground text-background font-bold shadow-lg hover:bg-foreground/90 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
-                  >
+                  <button onClick={() => { setShowAdminLogin(false); setAdminError(""); setAdminPassword(""); }} className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all">Cancel</button>
+                  <button onClick={handleAdminLogin} disabled={!adminPassword || isVerifying} className="flex-1 py-3.5 rounded-xl bg-foreground text-background font-bold shadow-lg hover:bg-foreground/90 transition-all disabled:opacity-50 flex justify-center items-center gap-2">
                     {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
                     Login
                   </button>
@@ -792,29 +712,17 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
         )}
       </AnimatePresence>
 
-      {/* ── CANCEL CONFIRMATION MODAL ── */}
       <AnimatePresence>
         {cancelTarget && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => { setCancelTarget(null); setCancelError(""); setCancelPassword(""); }}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card relative z-10 w-full max-w-sm rounded-3xl shadow-2xl p-8 border border-border"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setCancelTarget(null); setCancelError(""); setCancelPassword(""); }} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-card relative z-10 w-full max-w-sm rounded-3xl shadow-2xl p-8 border border-border">
               <div className="text-center mb-6">
                 <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
                   <X className="w-8 h-8 text-destructive" />
                 </div>
                 <h3 className="text-xl font-bold font-display">Cancel Booking</h3>
-                <p className="text-muted-foreground text-sm mt-2">
-                  Cancel booking for <strong className="text-foreground">{cancelTarget.name}</strong>?
-                </p>
+                <p className="text-muted-foreground text-sm mt-2">Cancel booking for <strong className="text-foreground">{cancelTarget.name}</strong>?</p>
               </div>
               <div className="space-y-4">
                 <div className="relative">
@@ -832,14 +740,8 @@ export function BookingCalendar({ preselectedPackage, onClearPreselected }: Book
                 </div>
                 {cancelError && <p className="text-sm text-destructive font-medium bg-destructive/10 px-4 py-3 rounded-xl border border-destructive/20">{cancelError}</p>}
                 <div className="flex gap-3 pt-2">
-                  <button onClick={() => { setCancelTarget(null); setCancelError(""); setCancelPassword(""); }} className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all">
-                    Go Back
-                  </button>
-                  <button
-                    onClick={handleCancelConfirm}
-                    disabled={!cancelPassword || isCancelling}
-                    className="flex-1 py-3.5 rounded-xl bg-destructive text-white font-bold shadow-lg shadow-destructive/30 hover:bg-destructive/90 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
-                  >
+                  <button onClick={() => { setCancelTarget(null); setCancelError(""); setCancelPassword(""); }} className="flex-1 py-3.5 rounded-xl border border-border font-bold hover:bg-secondary transition-all">Go Back</button>
+                  <button onClick={handleCancelConfirm} disabled={!cancelPassword || isCancelling} className="flex-1 py-3.5 rounded-xl bg-destructive text-white font-bold shadow-lg shadow-destructive/30 hover:bg-destructive/90 transition-all disabled:opacity-50 flex justify-center items-center gap-2">
                     {isCancelling ? <Loader2 className="w-5 h-5 animate-spin" /> : <X className="w-5 h-5" />}
                     Confirm Cancel
                   </button>
