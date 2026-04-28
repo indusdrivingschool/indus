@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { Hero } from "@/components/home/Hero";
-import { About } from "@/components/home/About";
-import { BookingCalendar } from "@/components/home/BookingCalendar";
-import { Contact } from "@/components/home/Contact";
-import { Packages, type PackageItem } from "@/components/home/Packages";
+import { Navbar } from "../components/layout/Navbar";
+import { Footer } from "../components/layout/Footer";
+import { Hero } from "../components/home/Hero";
+import { About } from "../components/home/About";
+import { BookingCalendar } from "../components/home/BookingCalendar";
+import { Contact } from "../components/home/Contact";
+import { Packages } from "../components/home/Packages";
+import type { PackageItem } from "../components/home/Packages"; // ✅ FIX
 
 export default function Home() {
   const [preselectedPackage, setPreselectedPackage] = useState<PackageItem | null>(null);
