@@ -46,17 +46,16 @@ export async function onRequestDelete(context: any) {
     if (isNaN(id)) return json({ error: "Invalid ID" }, 400);
     if (id === -1) return json({ status: "ok" }, 404);
 
-    // Step 1 — get booking first
-    const booking = await DB.prepare(
-      `SELECT id, date, time, package, name, phone, email, price FROM bookings WHERE id = ?`
-    ).bind(id).first();
+    // Get all bookings then find by id
+    const all = await DB.prepare(`SELECT id, date, time, package, name, phone, email, price FROM bookings`).all();
+    const booking = (all.results || []).find((b: any) => b.id === id);
 
     if (!booking) return json({ error: "Booking not found" }, 404);
 
-    // Step 2 — delete it
+    // Delete
     await DB.prepare(`DELETE FROM bookings WHERE id = ?`).bind(id).run();
 
-    // Step 3 — send cancel email to admin
+    // Email admin
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
         <div style="background:#7f1d1d;padding:20px;border-radius:8px 8px 0 0;">
@@ -77,7 +76,7 @@ export async function onRequestDelete(context: any) {
       sendEmail(ADMIN_EMAIL, "Booking Cancelled - Indus Driving School", html).catch(console.error)
     );
 
-    return json({ success: true, booking });
+    return json({ success: true });
 
   } catch (err: any) {
     console.error("DELETE error:", err);
