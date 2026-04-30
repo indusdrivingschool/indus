@@ -40,8 +40,9 @@ export async function onRequestDelete(context: any) {
     });
 
   try {
-    const providedPassword = request.headers.get("x-admin-password");
-    if (!ADMIN_PASSWORD || providedPassword !== ADMIN_PASSWORD) {
+   try {
+    if (!DB) return json({ error: "DB not connected" }, 500);
+    const providedPassword = request.headers.get("x-admin-password"); {
       return json({ error: "Incorrect admin password." }, 401);
     }
 
