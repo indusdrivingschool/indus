@@ -41,7 +41,7 @@ export async function onRequest(context: any) {
   try {
     if (method === "GET") {
       const result = await DB.prepare(
-        `SELECT id, date, time, package, name, phone, email, price, created_at as createdAt FROM bookings ORDER BY date ASC`
+        "SELECT id, date, time, package, name, phone, email, price, created_at as createdAt FROM bookings ORDER BY date ASC"
       ).all();
       return json(result.results || []);
     }
@@ -53,22 +53,31 @@ export async function onRequest(context: any) {
       if (!date || !time || !pkg || !name || !phone || !email)
         return json({ error: "Missing required fields" }, 400);
 
-      const existing = await DB.prepare(
-        `SELECT id FROM bookings WHERE date = ? AND time = ?`
-      ).bind(date, time).first();
-
-      if (existing)
+      // Check existing
+      const allBookings = await DB.prepare(
+        "SELECT id, date, time FROM bookings"
+      ).all();
+      const taken = (allBookings.results || []).find(
+        (b: any) => b.date === date && b.time === time
+      );
+      if (taken)
         return json({ error: "This time slot is already booked. Please choose another time." }, 409);
 
-      const booking = await DB.prepare(
-        `INSERT INTO bookings (date, time, package, name, phone, email, price)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         RETURNING id, date, time, package, name, phone, email, price, created_at as createdAt`
-      ).bind(date, time, pkg, name, phone, email || "", price || "").first();
+      // Insert WITHOUT RETURNING
+      await DB.prepare(
+        "INSERT INTO bookings (date, time, package, name, phone, email, price) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      ).bind(date, time, pkg, name, phone, email || "", price || "").run();
 
-      const adminHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><div style="background:#c0392b;padding:20px;border-radius:8px 8px 0 0;"><h1 style="color:white;margin:0;">🚗 New Booking</h1></div><div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #eee;"><table style="width:100%;"><tr><td style="padding:6px 0;color:#666;font-weight:bold;width:100px;">Name</td><td>${name}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Phone</td><td>${phone}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Email</td><td>${email}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Date</td><td>${date}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Time</td><td>${time}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Package</td><td>${pkg}</td></tr>${price ? `<tr><td style="padding:6px 0;color:#666;font-weight:bold;">Price</td><td style="color:#c0392b;font-weight:bold;">${price}</td></tr>` : ""}</table></div></div>`;
+      // Get the inserted booking
+      const all = await DB.prepare(
+        "SELECT id, date, time, package, name, phone, email, price FROM bookings ORDER BY id DESC"
+      ).all();
+      const booking = (all.results || [])[0];
 
-      const customerHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><div style="background:#c0392b;padding:24px;border-radius:8px 8px 0 0;text-align:center;"><h1 style="color:white;margin:0;">🎉 Booking Confirmed!</h1></div><div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #eee;"><p>Hi <strong>${name}</strong>!</p><table style="width:100%;"><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Date</td><td style="font-weight:bold;">${date}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Time</td><td style="font-weight:bold;">${time}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Package</td><td style="font-weight:bold;">${pkg}</td></tr>${price ? `<tr><td style="padding:6px 0;color:#666;font-weight:bold;">Price</td><td style="font-weight:bold;color:#c0392b;">${price}</td></tr>` : ""}</table><div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:16px;margin-top:16px;"><p style="margin:0;font-weight:bold;">💳 Send payment to: ${PAYMENT_NUMBER}</p></div><p>Call: <strong>+61 426 826 282</strong></p></div></div>`;
+      // Send emails
+      const adminHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><div style="background:#c0392b;padding:20px;border-radius:8px 8px 0 0;"><h1 style="color:white;margin:0;">New Booking</h1></div><div style="background:#f9f9f9;padding:24px;border:1px solid #eee;"><p><b>Name:</b> ${name}</p><p><b>Phone:</b> ${phone}</p><p><b>Email:</b> ${email}</p><p><b>Date:</b> ${date}</p><p><b>Time:</b> ${time}</p><p><b>Package:</b> ${pkg}</p>${price ? `<p><b>Price:</b> ${price}</p>` : ""}</div></div>`;
+
+      const customerHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><div style="background:#c0392b;padding:24px;border-radius:8px 8px 0 0;text-align:center;"><h1 style="color:white;margin:0;">Booking Confirmed!</h1></div><div style="background:#f9f9f9;padding:24px;border:1px solid #eee;"><p>Hi <b>${name}</b>!</p><p><b>Date:</b> ${date}</p><p><b>Time:</b> ${time}</p><p><b>Package:</b> ${pkg}</p>${price ? `<p><b>Price:</b> ${price}</p>` : ""}<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:16px;margin-top:16px;"><p style="margin:0;"><b>Send payment to: ${PAYMENT_NUMBER}</b></p></div><p>Call: +61 426 826 282</p></div></div>`;
 
       context.waitUntil(Promise.all([
         sendEmail(ADMIN_EMAIL, "New Booking - Indus Driving School", adminHtml),
