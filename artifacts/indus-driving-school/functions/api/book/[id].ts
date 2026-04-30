@@ -47,8 +47,8 @@ export async function onRequestDelete(context: any) {
     if (id === -1) return json({ status: "ok" }, 404);
 
     const booking = await DB.prepare(
-      `SELECT * FROM bookings WHERE id = ?`
-    ).bind(id).first();
+  `SELECT id, date, time, package, name, phone, email, price FROM bookings WHERE id = ?`
+).bind(id).first();
     if (!booking) return json({ error: "Booking not found" }, 404);
 
     await DB.prepare(`DELETE FROM bookings WHERE id = ?`).bind(id).run();
