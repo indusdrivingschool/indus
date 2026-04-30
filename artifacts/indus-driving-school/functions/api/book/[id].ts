@@ -46,20 +46,38 @@ export async function onRequestDelete(context: any) {
     if (isNaN(id)) return json({ error: "Invalid ID" }, 400);
     if (id === -1) return json({ status: "ok" }, 404);
 
+    // Step 1 — get booking first
     const booking = await DB.prepare(
-  `SELECT id, date, time, package, name, phone, email, price FROM bookings WHERE id = ?`
-).bind(id).first();
+      `SELECT id, date, time, package, name, phone, email, price FROM bookings WHERE id = ?`
+    ).bind(id).first();
+
     if (!booking) return json({ error: "Booking not found" }, 404);
 
+    // Step 2 — delete it
     await DB.prepare(`DELETE FROM bookings WHERE id = ?`).bind(id).run();
 
-    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><div style="background:#7f1d1d;padding:20px;border-radius:8px 8px 0 0;"><h1 style="color:white;margin:0;">❌ Booking Cancelled</h1></div><div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #eee;"><table style="width:100%;"><tr><td style="padding:6px 0;color:#666;font-weight:bold;width:100px;">Name</td><td>${booking.name}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Phone</td><td>${booking.phone}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Date</td><td>${booking.date}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Time</td><td>${booking.time}</td></tr><tr><td style="padding:6px 0;color:#666;font-weight:bold;">Package</td><td>${booking.package}</td></tr></table></div></div>`;
+    // Step 3 — send cancel email to admin
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+        <div style="background:#7f1d1d;padding:20px;border-radius:8px 8px 0 0;">
+          <h1 style="color:white;margin:0;">❌ Booking Cancelled</h1>
+        </div>
+        <div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #eee;">
+          <table style="width:100%;">
+            <tr><td style="padding:6px 0;color:#666;font-weight:bold;width:100px;">Name</td><td>${booking.name}</td></tr>
+            <tr><td style="padding:6px 0;color:#666;font-weight:bold;">Phone</td><td>${booking.phone}</td></tr>
+            <tr><td style="padding:6px 0;color:#666;font-weight:bold;">Date</td><td>${booking.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#666;font-weight:bold;">Time</td><td>${booking.time}</td></tr>
+            <tr><td style="padding:6px 0;color:#666;font-weight:bold;">Package</td><td>${booking.package}</td></tr>
+          </table>
+        </div>
+      </div>`;
 
     context.waitUntil(
       sendEmail(ADMIN_EMAIL, "Booking Cancelled - Indus Driving School", html).catch(console.error)
     );
 
-    return json(booking);
+    return json({ success: true, booking });
 
   } catch (err: any) {
     console.error("DELETE error:", err);
